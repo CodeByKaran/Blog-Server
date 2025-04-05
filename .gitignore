@@ -1,0 +1,81 @@
+# ========================
+# Environment Files
+# ========================
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+.env*.local
+
+# ========================
+# Dependency Directories
+# ========================
+node_modules/
+dist/        # Compiled TypeScript output
+build/       # Alternative build output folder
+jspm_packages/
+
+# ========================
+# IDE & Editor Files
+# ========================
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# ========================
+# OS & Tool Files
+# ========================
+.DS_Store
+Thumbs.db
+*.log       # Log files
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# ========================
+# Testing & Coverage
+# ========================
+coverage/
+.nyc_output/
+*.lcov
+
+# ========================
+# Debug Files
+# ========================
+debug/
+*.pid
+
+# ========================
+# Uploads & User Content
+# ========================
+uploads/    # If you have file uploads
+temp/
+
+# ========================
+# Package Manager Specific
+# ========================
+# npm
+package-lock.json
+# yarn
+yarn.lock
+# pnpm
+pnpm-lock.yaml
+
+# ========================
+# TypeScript Cache
+# ========================
+.tsbuildinfo
+
+# ========================
+# Optional (uncomment if needed)
+# ========================
+# # Serverless directories
+# .serverless/
+# # VS Code Workspace settings
+# *.code-workspace
