@@ -42,17 +42,17 @@ CREATE TABLE "users" (
 	"last_name" varchar(30) NOT NULL,
 	"username" varchar(30) NOT NULL,
 	"email" text NOT NULL,
+	"image" text DEFAULT 'https://api.dicebear.com/9.x/personas/svg?seed=Brooklynn',
 	"is_verified" boolean DEFAULT false NOT NULL,
 	"password" text,
 	"refresh_token" text,
 	"provider" text,
 	"provider_id" text,
+	"otp" text,
+	"otp_expiry" timestamp,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp DEFAULT now() NOT NULL,
 	"deleted_at" timestamp,
-	"image" text DEFAULT 'https://api.dicebear.com/9.x/personas/svg?seed=Brooklynn',
-	"otp" text,
-	"otp_expiry" timestamp,
 	CONSTRAINT "users_username_unique" UNIQUE("username"),
 	CONSTRAINT "users_email_unique" UNIQUE("email")
 );
@@ -73,7 +73,7 @@ CREATE INDEX "likes_blog_user_idx" ON "likes" USING btree ("blog_id" uuid_ops,"u
 CREATE INDEX "likes_user_id_idx" ON "likes" USING btree ("user_id" uuid_ops);--> statement-breakpoint
 CREATE INDEX "saves_blog_id_idx" ON "saves" USING btree ("blog_id" uuid_ops);--> statement-breakpoint
 CREATE INDEX "saves_user_id_idx" ON "saves" USING btree ("user_id" uuid_ops);--> statement-breakpoint
-CREATE UNIQUE INDEX "email_idx" ON "users" USING btree ("email" text_ops);--> statement-breakpoint
-CREATE UNIQUE INDEX "provider_id_idx" ON "users" USING btree ("provider_id" text_ops);--> statement-breakpoint
-CREATE UNIQUE INDEX "user_id_idx" ON "users" USING btree ("id" uuid_ops);--> statement-breakpoint
-CREATE UNIQUE INDEX "username_idx" ON "users" USING btree ("username" text_ops);
+CREATE UNIQUE INDEX "email_idx" ON "users" USING btree ("email");--> statement-breakpoint
+CREATE UNIQUE INDEX "username_idx" ON "users" USING btree ("username");--> statement-breakpoint
+CREATE UNIQUE INDEX "user_id_idx" ON "users" USING btree ("id");--> statement-breakpoint
+CREATE UNIQUE INDEX "provider_id_idx" ON "users" USING btree ("provider_id");

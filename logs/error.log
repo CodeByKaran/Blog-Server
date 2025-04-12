@@ -43,3 +43,9 @@
 {"level":"error","message":"Unhandled error: syntax error at or near \")\""}
 {"level":"error","message":"Unhandled error: syntax error at or near \")\""}
 {"level":"error","message":"Unhandled error: cannot cast type bigint to boolean"}
+{"level":"error","message":"Unhandled error: Expected double-quoted property name in JSON at position 198 (line 5 column 1)"}
+{"level":"error","message":"Unhandled error: Unexpected field"}
+{"level":"error","message":"Unhandled error: Cannot read properties of undefined (reading 'trim')"}
+{"level":"error","message":"Unhandled error: invalid input syntax for type uuid: \"deleteSingleBlogImage\""}
+{"level":"error","message":"Unhandled error: invalid input syntax for type uuid: \"36c2675f-d5be-4ecb-9c3d-5d45a9a46a074\""}
+{"level":"error","message":"Unhandled error: invalid input syntax for type uuid: \"36c2675f-d5be-4ecb-9c3d-5d45a9a46a074\""}

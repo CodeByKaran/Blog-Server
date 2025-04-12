@@ -42,6 +42,7 @@ export const blogs = pgTable(
       "btree",
       table.tags.asc().nullsLast().op("array_ops")
     ),
+    index("blog_title_idx").using("btree", table.title.asc().nullsLast()),
     foreignKey({
       columns: [table.author_id],
       foreignColumns: [users.id],
@@ -49,6 +50,8 @@ export const blogs = pgTable(
     }),
   ]
 );
+
+export type blogsInsertion = typeof blogs.$inferInsert;
 
 export const blogsRelations = relations(blogs, ({ one, many }) => ({
   user: one(users, {

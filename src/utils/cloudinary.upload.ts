@@ -32,9 +32,30 @@ const uploadImageToCloud = async (filePath: string) => {
   }
 };
 
+const uploadMultipleImagesToCloud = async (
+  filePathArrays: string[]
+): Promise<string[]> => {
+  return Promise.all(
+    filePathArrays.map(async (filePath) => {
+      try {
+        const result = await uploadImageToCloud(filePath);
+        return result.url; // ✅ only return secure_url
+      } catch (error) {
+        console.error(`❌ Error uploading file: ${filePath}`, error);
+        throw new ApiError(
+          `Failed to upload image: ${filePath}`,
+          HttpStatus.INTERNAL_SERVER_ERROR
+        );
+      }
+    })
+  );
+};
+
 const deleteImageFromCloud = async (publicId: string) => {
   try {
-    const result = await cloudinary.uploader.destroy(publicId);
+    const result = await cloudinary.uploader.destroy(publicId, {
+      resource_type: "image",
+    });
 
     if (result.result !== "ok" && result.result !== "not found") {
       throw new ApiError(
@@ -54,4 +75,42 @@ const deleteImageFromCloud = async (publicId: string) => {
   }
 };
 
-export { uploadImageToCloud, deleteImageFromCloud };
+const getCloudinaryPublicId = (url: string) => {
+  try {
+    const match = url.match(/\/([a-zA-Z0-9]+)\.png$/);
+
+    return match ? `blogs/${match[1]}` : null;
+  } catch {
+    return null;
+  }
+};
+
+const deleteMultipleImagesFromCloud = async (urls: string[]) => {
+  return Promise.all(
+    urls.map(async (url) => {
+      try {
+        const id = getCloudinaryPublicId(url);
+        console.log("public id:", id);
+
+        const result = await deleteImageFromCloud(id!);
+        console.log("image deleted of id ", id);
+
+        return result;
+      } catch (error) {
+        console.error(`❌ Error uploading file: `, error);
+        throw new ApiError(
+          `Failed to delete images`,
+          HttpStatus.INTERNAL_SERVER_ERROR
+        );
+      }
+    })
+  );
+};
+
+export {
+  uploadImageToCloud,
+  deleteImageFromCloud,
+  uploadMultipleImagesToCloud,
+  getCloudinaryPublicId,
+  deleteMultipleImagesFromCloud,
+};
