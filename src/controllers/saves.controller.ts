@@ -6,11 +6,96 @@ import {
   errorResponse,
   HttpStatus,
 } from "../utils/apiResponse";
+import { db } from "../db/db";
+import { saves } from "../models/saves.model";
+import { blogs } from "../models/blog.model";
+import { isValidUUID } from "../utils/common.helper";
+import { and, eq } from "drizzle-orm";
 
+// Save a blog
 const saveBlog = AsyncHandler(async (req: Request, res: Response) => {
+  const user = req.user; // Remove @ts-ignore with proper typing
+  const blogId = req.params.blogId;
+
+  // 1. Validate blogId format
+  if (!isValidUUID(blogId)) {
+    throw new ApiError("Invalid blog ID format", HttpStatus.BAD_REQUEST);
+  }
+
+  // 2. Check if the blog exists
+  const blogExists = await db.query.blogs.findFirst({
+    where: eq(blogs.id, blogId),
+  });
+
+  if (!blogExists) {
+    throw new ApiError("Blog not found", HttpStatus.NOT_FOUND);
+  }
+
+  // 3. Check if the blog is already saved by the user
+  const existingSave = await db.query.saves.findFirst({
+    where: and(eq(saves.blogId, blogId), eq(saves.userId, user.id)),
+  });
+
+  if (existingSave) {
+    return res
+      .status(HttpStatus.CONFLICT)
+      .json(
+        errorResponse("You've already saved this blog", HttpStatus.CONFLICT)
+      );
+  }
+
+  // 4. Save the blog
+  const newSave = await db
+    .insert(saves)
+    .values({
+      blogId: blogId,
+      userId: user.id,
+    })
+    .returning();
+
+  // 5. Return success response
   return res
-    .status(HttpStatus.OK)
-    .json(successResponse([], "Blog saved successfully"));
+    .status(HttpStatus.CREATED)
+    .json(successResponse({ save: newSave }, "Blog saved successfully"));
 });
 
-export { saveBlog };
+// Remove a saved blog
+const removeBlog = AsyncHandler(async (req: Request, res: Response) => {
+  const user = req.user; // Remove @ts-ignore with proper typing
+  const blogId = req.params.blogId;
+
+  // 1. Validate blogId format
+  if (!isValidUUID(blogId)) {
+    throw new ApiError("Invalid blog ID format", HttpStatus.BAD_REQUEST);
+  }
+
+  // 2. Check if the blog is saved by the user
+  const existingSave = await db.query.saves.findFirst({
+    where: and(eq(saves.blogId, blogId), eq(saves.userId, user.id)),
+  });
+
+  if (!existingSave) {
+    throw new ApiError(
+      "Blog not saved or not authorized",
+      HttpStatus.NOT_FOUND
+    );
+  }
+
+  // 3. Remove the saved blog
+  const deletedSave = await db
+    .delete(saves)
+    .where(and(eq(saves.blogId, blogId), eq(saves.userId, user.id)))
+    .returning();
+
+  // 4. Return success response
+  return res
+    .status(HttpStatus.OK)
+    .json(
+      successResponse(
+        { save: deletedSave },
+        "Blog removed from saved successfully"
+      )
+    );
+});
+
+export { saveBlog, removeBlog };

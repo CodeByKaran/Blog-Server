@@ -1,0 +1,1 @@
+CREATE INDEX "blog_title_idx" ON "blogs" USING btree ("title");

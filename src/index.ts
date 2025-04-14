@@ -7,7 +7,7 @@ import cors from "cors";
 import helmet from "helmet";
 import morgan from "morgan";
 import rateLimit from "express-rate-limit";
-import Logger from "./utils/logger";
+
 import { errorHandler, notFoundHandler } from "./utils/errorHandler";
 import cookieParser from "cookie-parser";
 
@@ -25,7 +25,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.static("public"));
 app.use(cookieParser());
 
-// limit api rate
+//limit api rate
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 100, // limit each IP to 100 requests per windowMs
@@ -55,8 +55,8 @@ import saveRouter from "./routes/saves.route";
 app.use("/api/v1/user", userRouter);
 app.use("/api/v1/blog", blogRouter);
 app.use("/api/v1/comment", commentRouter);
-app.use("/api/v1/likes", likesRouter);
-app.use("/api/v1/saves", saveRouter);
+app.use("/api/v1/like", likesRouter);
+app.use("/api/v1/save", saveRouter);
 
 // Handle 404 - Keep this after all defined routes
 app.use(notFoundHandler);
@@ -65,5 +65,5 @@ app.use(notFoundHandler);
 app.use(errorHandler);
 
 app.listen(PORT, () => {
-  Logger.info(`🚀 Server running on port ${PORT}`);
+  console.log(`🚀 Server running on port ${PORT}`);
 });

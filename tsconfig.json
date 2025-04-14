@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "typeRoots": ["./node_modules/@types", "./src/types/express/index.d.ts"],
+    "typeRoots": ["./src/types", "./node_modules/@types"],
     "target": "ES2020",
     "module": "commonjs",
     "outDir": "./dist",

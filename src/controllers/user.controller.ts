@@ -14,7 +14,7 @@ import {
 import { users, usersSchema } from "../models/user.model";
 import { eventEmitter } from "../config/eventEmitter.config";
 import { generateOTP } from "../utils/otp.helper";
-import Logger from "../utils/logger";
+
 import { eq } from "drizzle-orm";
 import { uploadImageToCloud } from "../utils/cloudinary.upload";
 
@@ -28,7 +28,7 @@ export const cookiesConfig = {
     httpOnly: true,
     secure: process.env.NODE_ENV !== "development",
     sameSite: "strict" as const,
-    maxAge: 12 * 60 * 1000 * 24,
+    maxAge: 12 * 60 * 60 * 1000,
   },
   refresh: {
     httpOnly: true,
@@ -80,9 +80,9 @@ const signUp = AsyncHandler(async (req: Request, res: Response) => {
 
   try {
     eventEmitter.emit("user.created", { email, username, otp });
-    Logger.debug("Event emitted successfully");
+    console.debug("Event emitted successfully");
   } catch (error) {
-    Logger.error("Error emitting event:", error);
+    console.error("Error emitting event:", error);
   }
 
   res.cookie("email", email);
@@ -257,7 +257,6 @@ const refreshTokens = AsyncHandler(async (req: Request, res: Response) => {
 });
 
 const getSessionUser = AsyncHandler(async (req: Request, res: Response) => {
-  //@ts-ignore
   const user = req.user;
 
   if (!user) {
@@ -299,16 +298,15 @@ const refreshOtp = AsyncHandler(async (req: Request, res: Response) => {
 
   try {
     eventEmitter.emit("otp.refreshed", { email, otp });
-    Logger.debug("Event emitted successfully");
+    console.debug("Event emitted successfully");
   } catch (error) {
-    Logger.error("Error emitting event:", error);
+    console.error("Error emitting event:", error);
   }
 
   return res.status(HttpStatus.OK).json(successResponse({}, "otp refreshed"));
 });
 
 const signOut = AsyncHandler(async (req: Request, res: Response) => {
-  //@ts-ignore
   const user = req.user;
 
   if (!user) {
@@ -324,7 +322,6 @@ const signOut = AsyncHandler(async (req: Request, res: Response) => {
 });
 
 const uploadProfileImage = AsyncHandler(async (req: Request, res: Response) => {
-  //@ts-ignore
   const user = req.user;
   const file = req.file?.path;
 
@@ -356,7 +353,6 @@ const uploadProfileImage = AsyncHandler(async (req: Request, res: Response) => {
 });
 
 const updateUserInfo = AsyncHandler(async (req: Request, res: Response) => {
-  //@ts-ignore
   const user = req.user;
 
   if (!user) {

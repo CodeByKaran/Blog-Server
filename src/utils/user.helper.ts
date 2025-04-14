@@ -66,7 +66,7 @@ const generateRefreshToken = (userId: string): string => {
 
 export const verifyAccessToken = (token: string) => {
   return jwt.verify(token, process.env.JWT_SECRET!) as {
-    userId: string;
+    id: string;
     username: string;
     image: string;
   };

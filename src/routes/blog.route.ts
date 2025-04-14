@@ -9,6 +9,8 @@ import {
   uploadSingleBlogImage,
   getSingleBlog,
   getAuthorBlogs,
+  getBlogsWithSameTitle,
+  getBlogsWithMostLikes,
 } from "../controllers/blog.controller";
 import AuthMiddleware from "../middlewares/auth.middleware";
 import { upload } from "../middlewares/multer.middleware";
@@ -26,5 +28,7 @@ router
   .patch(AuthMiddleware, upload.single("image"), uploadSingleBlogImage);
 router.route("/:blogId").get(AuthMiddleware, getSingleBlog);
 router.route("/author/:authorId").get(AuthMiddleware, getAuthorBlogs);
+router.route("/search/title").get(AuthMiddleware, getBlogsWithSameTitle);
+router.route("/search/most-likes").get(AuthMiddleware, getBlogsWithMostLikes);
 
 export default router;

@@ -25,7 +25,9 @@ export const blogs = pgTable(
     content: text().notNull(),
     images: text().array().default([""]).notNull(),
     tags: text().array().default([""]).notNull(),
-    author_id: uuid("author_id").notNull(),
+    author_id: uuid("author_id")
+      .references(() => users.id, { onDelete: "cascade" })
+      .notNull(),
     created_at: timestamp("created_at", { mode: "string" })
       .defaultNow()
       .notNull(),

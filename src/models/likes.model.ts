@@ -9,14 +9,22 @@ import {
 } from "drizzle-orm/pg-core";
 import { users } from "./user.model";
 import { blogs } from "./blog.model";
-import { relations } from "drizzle-orm";
+import { like, relations } from "drizzle-orm";
 
 export const likes = pgTable(
   "likes",
   {
     id: uuid().defaultRandom().primaryKey().notNull(),
-    blogId: uuid("blog_id").notNull(),
-    userId: uuid("user_id").notNull(),
+    blogId: uuid("blog_id")
+      .references(() => blogs.id, {
+        onDelete: "cascade",
+      })
+      .notNull(),
+    userId: uuid("user_id")
+      .references(() => users.id, {
+        onDelete: "cascade",
+      })
+      .notNull(),
     createdAt: timestamp("created_at", { mode: "string" })
       .defaultNow()
       .notNull(),
@@ -48,6 +56,8 @@ export const likes = pgTable(
     unique("unique_like").on(table.blogId, table.userId),
   ]
 );
+
+export type likesSchema = typeof likes.$inferInsert;
 
 export const likesRelations = relations(likes, ({ one }) => ({
   blog: one(blogs, {

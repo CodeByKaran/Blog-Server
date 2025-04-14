@@ -3,7 +3,6 @@ import { AsyncHandler } from "../utils/asyncHandler";
 import { ApiError } from "../utils/apiResponse";
 import jwt, { JwtPayload } from "jsonwebtoken";
 import { verifyAccessToken } from "../utils/user.helper";
-import Logger from "../utils/logger";
 
 const AuthMiddleware = AsyncHandler(
   async (

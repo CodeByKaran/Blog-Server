@@ -7,7 +7,7 @@ import {
   HttpStatus,
 } from "../utils/apiResponse";
 import { db } from "../db/db";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, like, sql } from "drizzle-orm";
 import { blogPostSchema } from "../config/zod.schema";
 import { blogs, blogsInsertion } from "../models/blog.model";
 import {
@@ -19,112 +19,17 @@ import {
   removeExtraSpaces,
   removeExtraSpacesAndLowerCase,
 } from "../utils/common.helper";
+import {
+  paginateAuthorBlogs,
+  paginateBlogs,
+  paginateBlogsWithLikeTitle,
+  paginateBlogsWithMostLikes,
+} from "../utils/paginate";
 
 // edit needed
-const paginateBlogs = async (
-  cursor?: {
-    id: string;
-    created_at: Date;
-  },
-  pageSize = 3,
-  orderBy: "asc" | "desc" = "asc",
-  userId?: string,
-  authorId?: string
-) => {
-  const result = await db.query.blogs.findMany({
-    where: (blogs, { gt, lt, and, or, eq }) => {
-      if (!cursor) return undefined;
-
-      const conditions = [];
-
-      // Format the cursor date exactly as it appears in the DB
-      // Use the PostgreSQL timestamp format
-      const dateObj = cursor.created_at;
-
-      // Format to match the PostgreSQL timestamp string format
-      const year = dateObj.getFullYear();
-      const month = String(dateObj.getMonth() + 1).padStart(2, "0");
-      const day = String(dateObj.getDate()).padStart(2, "0");
-      const hours = String(dateObj.getHours()).padStart(2, "0");
-      const minutes = String(dateObj.getMinutes()).padStart(2, "0");
-      const seconds = String(dateObj.getSeconds()).padStart(2, "0");
-      const milliseconds = String(dateObj.getMilliseconds()).padStart(3, "0");
-
-      // Format: 2025-04-11 12:22:00.212
-      const formattedDate = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}.${milliseconds}`;
-
-      const cursorCondition =
-        orderBy === "desc"
-          ? or(
-              lt(blogs.created_at, formattedDate),
-              and(eq(blogs.created_at, formattedDate), lt(blogs.id, cursor.id))
-            )
-          : or(
-              gt(blogs.created_at, formattedDate),
-              and(eq(blogs.created_at, formattedDate), gt(blogs.id, cursor.id))
-            );
-
-      conditions.push(cursorCondition);
-
-      if (authorId) {
-        conditions.push(eq(blogs.author_id, authorId));
-      }
-
-      return conditions.length > 1 ? and(...conditions) : cursorCondition;
-    },
-    orderBy: (blogs, { asc, desc }) =>
-      orderBy === "asc"
-        ? [asc(blogs.created_at), asc(blogs.id)]
-        : [desc(blogs.created_at), desc(blogs.id)],
-    limit: pageSize,
-    with: {
-      user: {
-        columns: {
-          username: true,
-          image: true,
-          first_name: true,
-          last_name: true,
-        },
-      },
-    },
-    extras: {
-      totalLikes:
-        sql<number>`CAST((SELECT COUNT(*) FROM likes WHERE blogs.id = likes.blog_id) AS INTEGER)`.as(
-          "total_likes"
-        ),
-      totalSaves:
-        sql<number>`CAST((SELECT COUNT(*) FROM saves WHERE blogs.id = saves.blog_id) AS INTEGER)`.as(
-          "total_saves"
-        ),
-      totalComments:
-        sql<number>`CAST((SELECT COUNT(*) FROM comments WHERE blogs.id = comments.blog_id) AS INTEGER)`.as(
-          "total_comments"
-        ),
-      isLiked: userId
-        ? sql<boolean>`
-        EXISTS (
-          SELECT 1 FROM likes
-          WHERE likes.blog_id = blogs.id
-          AND likes.user_id = ${userId}
-        )`.as("is_liked")
-        : sql<boolean>`false`.as("is_liked"),
-      isSaved: userId
-        ? sql<boolean>`
-        EXISTS (
-          SELECT 1 FROM saves 
-          WHERE saves.blog_id = blogs.id 
-          AND saves.user_id = ${userId}
-        )`.as("is_saved")
-        : sql<boolean>`false`.as("is_saved"),
-    },
-  });
-
-  return result;
-};
 
 const getBlogs = AsyncHandler(async (req: Request, res: Response) => {
-  //@ts-ignore
-  const user = req.user;
+  const user = req?.user;
 
   if (!user) {
     throw new ApiError(
@@ -159,7 +64,10 @@ const getBlogs = AsyncHandler(async (req: Request, res: Response) => {
     ? parseInt(req.query.pageSize as string, 10)
     : 5;
 
-  const orderBy = (req.query.orderBy as "asc" | "desc") || "desc"; // Default to desc for blogs
+  const dire = (req.query.dire as "asc" | "desc") || "desc";
+
+  const tags = req.query.tags as string[];
+  const title = req.query.title as string;
 
   let paginatedBlogs;
   const totalBlogs = await db.$count(blogs);
@@ -168,11 +76,18 @@ const getBlogs = AsyncHandler(async (req: Request, res: Response) => {
     paginatedBlogs = await paginateBlogs(
       { id, created_at },
       pageSize,
-      orderBy,
+      dire,
+
       user.id
     );
   } else {
-    paginatedBlogs = await paginateBlogs(undefined, pageSize, orderBy, user.id);
+    paginatedBlogs = await paginateBlogs(
+      undefined,
+      pageSize,
+      dire,
+
+      user.id
+    );
   }
 
   // Format cursor dates to match exactly how they appear in responses
@@ -188,7 +103,6 @@ const getBlogs = AsyncHandler(async (req: Request, res: Response) => {
     successResponse(
       {
         pageSize,
-        orderBy,
         cursor: nextCursor,
         totalBlogs,
         blogs: paginatedBlogs,
@@ -199,7 +113,6 @@ const getBlogs = AsyncHandler(async (req: Request, res: Response) => {
 });
 
 const checkSameTitle = AsyncHandler(async (req: Request, res: Response) => {
-  //@ts-ignore
   const user = req.user;
 
   if (!user) {
@@ -248,7 +161,6 @@ const checkSameTitle = AsyncHandler(async (req: Request, res: Response) => {
 });
 
 const postBlogs = AsyncHandler(async (req: Request, res: Response) => {
-  //@ts-ignore
   const user = req.user;
 
   if (!user) {
@@ -298,7 +210,6 @@ const postBlogs = AsyncHandler(async (req: Request, res: Response) => {
 });
 
 const deleteBlogs = AsyncHandler(async (req: Request, res: Response) => {
-  //@ts-ignore
   const user = req.user;
 
   if (!user) {
@@ -340,7 +251,6 @@ const deleteBlogs = AsyncHandler(async (req: Request, res: Response) => {
 });
 
 const updateBlogs = AsyncHandler(async (req: Request, res: Response) => {
-  //@ts-ignore
   const user = req.user;
 
   if (!user) {
@@ -426,7 +336,6 @@ const updateBlogs = AsyncHandler(async (req: Request, res: Response) => {
 
 const deleteSingleBlogImage = AsyncHandler(
   async (req: Request, res: Response) => {
-    //@ts-ignore
     const user = req.user;
 
     if (!user) {
@@ -507,7 +416,6 @@ const deleteSingleBlogImage = AsyncHandler(
 
 const uploadSingleBlogImage = AsyncHandler(
   async (req: Request, res: Response) => {
-    //@ts-ignore
     const user = req.user;
 
     if (!user) {
@@ -590,7 +498,6 @@ const uploadSingleBlogImage = AsyncHandler(
 );
 
 const getSingleBlog = AsyncHandler(async (req: Request, res: Response) => {
-  //@ts-ignore
   const user = req.user;
 
   if (!user) {
@@ -662,7 +569,6 @@ const getSingleBlog = AsyncHandler(async (req: Request, res: Response) => {
 });
 
 const getAuthorBlogs = AsyncHandler(async (req: Request, res: Response) => {
-  //@ts-ignore
   const user = req.user;
 
   if (!user) {
@@ -703,7 +609,7 @@ const getAuthorBlogs = AsyncHandler(async (req: Request, res: Response) => {
     ? parseInt(req.query.pageSize as string, 10)
     : 5;
 
-  const orderBy = (req.query.orderBy as "asc" | "desc") || "desc";
+  const dire = (req.query.dire as "asc" | "desc") || "desc";
 
   let paginatedBlogs;
   const totalAuthorBlogs = await db.$count(
@@ -712,21 +618,12 @@ const getAuthorBlogs = AsyncHandler(async (req: Request, res: Response) => {
   );
 
   if (id && created_at) {
-    paginatedBlogs = await paginateBlogs(
-      { id, created_at },
-      pageSize,
-      orderBy,
-      user.id,
-      authorId
-    );
+    paginatedBlogs = await paginateAuthorBlogs(authorId, 2, user.id, {
+      id,
+      created_at,
+    });
   } else {
-    paginatedBlogs = await paginateBlogs(
-      undefined,
-      pageSize,
-      orderBy,
-      user.id,
-      authorId
-    );
+    paginatedBlogs = await paginateAuthorBlogs(authorId, 2, user.id);
   }
 
   const nextCursor =
@@ -741,7 +638,6 @@ const getAuthorBlogs = AsyncHandler(async (req: Request, res: Response) => {
     successResponse(
       {
         pageSize,
-        orderBy,
         cursor: nextCursor,
         totalBlogs: totalAuthorBlogs,
         blogs: paginatedBlogs,
@@ -750,6 +646,102 @@ const getAuthorBlogs = AsyncHandler(async (req: Request, res: Response) => {
     )
   );
 });
+
+const getBlogsWithSameTitle = AsyncHandler(
+  async (req: Request, res: Response) => {
+    const user = req.user;
+    const title = req.query.title as string;
+
+    console.log(title);
+
+    if (!title) {
+      throw new ApiError("title is required", HttpStatus.BAD_REQUEST);
+    }
+
+    const id = req.query.id as string;
+    const string_date = req.query.createdAt as string;
+    const created_at: Date = new Date(string_date);
+
+    let paginatedResults;
+
+    if (id && created_at) {
+      paginatedResults = await paginateBlogsWithLikeTitle(title, 2, user.id, {
+        id,
+        created_at,
+      });
+    } else {
+      paginatedResults = await paginateBlogsWithLikeTitle(title, 2, user.id);
+    }
+
+    const totalBlogs = await db.$count(
+      blogs,
+      sql`LOWER(blogs.title) LIKE LOWER(${`%${title}%`})`
+    );
+
+    const nextCursor =
+      paginatedResults.length > 0
+        ? {
+            id: paginatedResults[paginatedResults.length - 1].id,
+            created_at:
+              paginatedResults[paginatedResults.length - 1].created_at,
+          }
+        : null;
+
+    return res.status(HttpStatus.OK).json(
+      successResponse(
+        {
+          pageSize: 2,
+          totalBlogs,
+          cursor: nextCursor,
+          blogs: paginatedResults,
+        },
+        "blogs retrived successfully!"
+      )
+    );
+  }
+);
+
+const getBlogsWithMostLikes = AsyncHandler(
+  async (req: Request, res: Response) => {
+    const user = req.user;
+    const id = req.query.id as string;
+    const string_date = req.query.createdAt as string;
+    const created_at: Date = new Date(string_date);
+
+    const pageSize = req.query.pageSize
+      ? parseInt(req.query.pageSize as string, 10)
+      : 5;
+
+    let paginatedBlogs;
+    if (id && created_at) {
+      paginatedBlogs = await paginateBlogsWithMostLikes(pageSize, user.id, {
+        id,
+        created_at,
+      });
+    } else {
+      paginatedBlogs = await paginateBlogsWithMostLikes(pageSize, user.id);
+    }
+
+    const nextCursor =
+      paginatedBlogs.length > 0
+        ? {
+            id: paginatedBlogs[paginatedBlogs.length - 1].id,
+            createdAt: paginatedBlogs[paginatedBlogs.length - 1].created_at,
+          }
+        : null;
+
+    return res.status(HttpStatus.OK).json(
+      successResponse(
+        {
+          pageSize,
+          cursor: nextCursor,
+          blogs: paginatedBlogs,
+        },
+        "Blogs retrieved successfully!"
+      )
+    );
+  }
+);
 
 export {
   getBlogs,
@@ -761,4 +753,6 @@ export {
   uploadSingleBlogImage,
   getSingleBlog,
   getAuthorBlogs,
+  getBlogsWithSameTitle,
+  getBlogsWithMostLikes,
 };

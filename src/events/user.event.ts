@@ -2,12 +2,11 @@
 
 import { eventEmitter } from "../config/eventEmitter.config";
 import { sendEmail } from "../config/nodemailer.config";
-import Logger from "../utils/logger";
 
 eventEmitter.on(
   "user.created",
   async (user: { email: string; username: string; otp: string }) => {
-    Logger.debug("event emit called");
+    console.debug("event emit called");
     try {
       const mailData = {
         from: process.env.TRANSPORTER_EMAIL,
@@ -39,9 +38,9 @@ eventEmitter.on(
       };
 
       await sendEmail(mailData);
-      Logger.info(`Verification email sent to ${user.email}`);
+      console.info(`Verification email sent to ${user.email}`);
     } catch (error) {
-      Logger.error(
+      console.error(
         `Failed to send verification email to ${user.email}:`,
         error
       );
@@ -52,7 +51,7 @@ eventEmitter.on(
 eventEmitter.on(
   "otp.refreshed",
   async (user: { email: string; otp: string }) => {
-    Logger.debug("event emit called");
+    console.debug("event emit called");
     try {
       const mailData = {
         from: process.env.TRANSPORTER_EMAIL,
@@ -78,9 +77,9 @@ eventEmitter.on(
       };
 
       await sendEmail(mailData);
-      Logger.info(`Verification email sent to ${user.email}`);
+      console.info(`Verification email sent to ${user.email}`);
     } catch (error) {
-      Logger.error(
+      console.error(
         `Failed to send verification email to ${user.email}:`,
         error
       );
@@ -88,4 +87,4 @@ eventEmitter.on(
   }
 );
 
-Logger.debug(`Listener count: ${eventEmitter.listenerCount("user.created")}`);
+console.debug(`Listener count: ${eventEmitter.listenerCount("user.created")}`);

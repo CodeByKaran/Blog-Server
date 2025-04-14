@@ -5,6 +5,12 @@ declare global {
   namespace Express {
     // Extend Request interface
     interface Request {
+      user:
+        | JwtPayload & {
+            id: string;
+            username: string;
+            image: string;
+          };
       file?: Multer.File;
       files?:
         | {
