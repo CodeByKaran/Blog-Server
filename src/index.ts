@@ -2,11 +2,12 @@ import "dotenv/config";
 import "./config/eventEmitter.config";
 import "./events/user.event";
 import "./config/cloudinary.config";
-import express, { Application, Request, Response } from "express";
+import express, { Application, NextFunction, Request, Response } from "express";
 import cors from "cors";
 import helmet from "helmet";
 import morgan from "morgan";
 import rateLimit from "express-rate-limit";
+import Tokens from "csrf";
 
 import { errorHandler, notFoundHandler } from "./utils/errorHandler";
 import cookieParser from "cookie-parser";
@@ -15,6 +16,7 @@ import cookieParser from "cookie-parser";
 
 const app: Application = express();
 const PORT = process.env.PORT || 3000;
+const tokens = new Tokens();
 
 // Middleware
 app.use(cors());
@@ -25,6 +27,49 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.static("public"));
 app.use(cookieParser());
 
+//csrf
+app.use((req, res, next) => {
+  if (!req.cookies.csrfSecret) {
+    const secret = tokens.secretSync();
+    res.cookie("csrfSecret", secret, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV != "development",
+      sameSite: "strict",
+    });
+  }
+
+  const token = tokens.create(req.cookies.csrfSecret);
+  res.locals.csrfToken = token;
+
+  next();
+});
+
+// CSRF Protection verification middleware for non-GET requests
+app.use((req, res, next) => {
+  if (["GET", "HEAD", "OPTIONS"].includes(req.method)) {
+    return next();
+  }
+  const token =
+    req.headers["x-csrf-token"] ||
+    req.headers["x-xsrf-token"] ||
+    req.body?._csrf;
+
+  if (!token || !tokens.verify(req.cookies.csrfSecret, token)) {
+    const err = new ApiError(
+      "csrf token issue check that you provided crsf token in headers if provided then it is not valid refresh csrf token",
+      HttpStatus.NOT_FOUND
+    );
+    return next(err);
+  }
+
+  next();
+});
+
+// Route to get CSRF token for client-side use
+app.get("/csrf-token", (req, res) => {
+  res.json({ csrfToken: res.locals.csrfToken });
+});
+
 //limit api rate
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
@@ -32,10 +77,9 @@ const limiter = rateLimit({
   message: "Too many requests, please try again later.",
   skip: (req, res) => {
     const devIPs = ["::ffff:127.0.0.1"];
-    const isDevMode = process.env.NODE_ENV === "development";
     const isDevIP = devIPs.includes(req.ip!);
 
-    return isDevMode || isDevIP;
+    return isDevIP;
   },
 });
 app.use(limiter);
@@ -44,6 +88,10 @@ app.use(limiter);
 app.get("/health", (req: Request, res: Response) => {
   res.status(200).json({ status: "ok" });
 });
+// get csrf token
+app.get("/api/csrf-token", (req, res) => {
+  res.json({ csrfToken: res.locals.csrfToken });
+});
 
 // routes
 import userRouter from "./routes/user.route";
@@ -51,6 +99,7 @@ import blogRouter from "./routes/blog.route";
 import commentRouter from "./routes/comments.route";
 import likesRouter from "./routes/likes.route";
 import saveRouter from "./routes/saves.route";
+import { ApiError, HttpStatus } from "./utils/apiResponse";
 
 app.use("/api/v1/user", userRouter);
 app.use("/api/v1/blog", blogRouter);
