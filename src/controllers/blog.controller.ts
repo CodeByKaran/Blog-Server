@@ -23,7 +23,7 @@ import {
   paginateAuthorBlogs,
   paginateBlogs,
   paginateBlogsWithLikeTitle,
-  paginateBlogsWithMostLikes,
+  paginateBlogsWithSameTags,
 } from "../utils/paginate";
 
 // edit needed
@@ -652,8 +652,6 @@ const getBlogsWithSameTitle = AsyncHandler(
     const user = req.user;
     const title = req.query.title as string;
 
-    console.log(title);
-
     if (!title) {
       throw new ApiError("title is required", HttpStatus.BAD_REQUEST);
     }
@@ -701,32 +699,43 @@ const getBlogsWithSameTitle = AsyncHandler(
   }
 );
 
-const getBlogsWithMostLikes = AsyncHandler(
+const getBlogsWithSameTags = AsyncHandler(
   async (req: Request, res: Response) => {
     const user = req.user;
-    const id = req.query.id as string;
+    const tags = (req.query.tags as string)?.split(",") || [];
+
+    if (!tags || tags.length === 0) {
+      throw new ApiError("Tags are required", HttpStatus.BAD_REQUEST);
+    }
+
+    const id = req.query.id as string | undefined;
     const string_date = req.query.createdAt as string;
     const created_at: Date = new Date(string_date);
 
     const pageSize = req.query.pageSize
       ? parseInt(req.query.pageSize as string, 10)
-      : 5;
+      : 2;
 
     let paginatedBlogs;
     if (id && created_at) {
-      paginatedBlogs = await paginateBlogsWithMostLikes(pageSize, user.id, {
-        id,
-        created_at,
-      });
+      paginatedBlogs = await paginateBlogsWithSameTags(
+        tags,
+        pageSize,
+        user.id,
+        {
+          id,
+          created_at,
+        }
+      );
     } else {
-      paginatedBlogs = await paginateBlogsWithMostLikes(pageSize, user.id);
+      paginatedBlogs = await paginateBlogsWithSameTags(tags, pageSize, user.id);
     }
 
     const nextCursor =
       paginatedBlogs.length > 0
         ? {
             id: paginatedBlogs[paginatedBlogs.length - 1].id,
-            createdAt: paginatedBlogs[paginatedBlogs.length - 1].created_at,
+            created_at: paginatedBlogs[paginatedBlogs.length - 1].created_at,
           }
         : null;
 
@@ -754,5 +763,5 @@ export {
   getSingleBlog,
   getAuthorBlogs,
   getBlogsWithSameTitle,
-  getBlogsWithMostLikes,
+  getBlogsWithSameTags,
 };

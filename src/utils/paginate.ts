@@ -1,6 +1,7 @@
 import {
   and,
   arrayContains,
+  desc,
   eq,
   gt,
   inArray,
@@ -14,6 +15,7 @@ import { blogs } from "../models/blog.model";
 import { table } from "console";
 import { comments } from "../models/comments.model";
 import { users } from "../models/user.model";
+import { saves } from "../models/saves.model";
 
 const formatDate = (dateObj: Date) => {
   // Format to match the PostgreSQL timestamp string format
@@ -239,35 +241,38 @@ const paginateBlogsWithLikeTitle = async (
   return result;
 };
 
-// yaha se kl se krunga
-const paginateBlogsWithMostLikes = async (
+const paginateBlogsWithSameTags = async (
+  tags: string[],
   pageSize = 3,
-  userId?: string,
+  userId: string,
   cursor?: { id: string; created_at: Date }
 ) => {
   const result = await db.query.blogs.findMany({
     where: () => {
-      if (!cursor) return undefined;
-      else {
-        const formatedDate = formatDate(cursor.created_at);
-        return or(
-          gt(blogs.created_at, formatedDate),
-          and(eq(blogs.created_at, formatedDate), gt(blogs.id, cursor.id))
+      const conditions = [];
+      conditions.push(arrayContains(blogs.tags, tags));
+      if (cursor) {
+        const formattedDate = formatDate(cursor.created_at);
+        conditions.push(
+          or(
+            lt(blogs.created_at, formattedDate),
+            and(eq(blogs.created_at, formattedDate), lt(blogs.id, cursor.id))
+          )
         );
       }
+      return and(...conditions);
     },
-    orderBy: (blogs) => [
-      sql`(SELECT COUNT(*) FROM likes WHERE likes.blog_id = blogs.id) DESC`,
-      blogs.id,
-    ],
+    orderBy: (blogs, { desc }) => [desc(blogs.created_at), desc(blogs.id)],
     limit: pageSize,
     with: {
       user: {
         columns: {
           username: true,
+          email: true,
           image: true,
           first_name: true,
           last_name: true,
+          created_at: true,
         },
       },
     },
@@ -305,84 +310,32 @@ const paginateBlogsWithMostLikes = async (
   return result;
 };
 
-const paginateBlogsWithMostSaves = async (
-  pageSize = 3,
-  cursor?: { id: string; totalSaves: number }
-) => {
-  const result = await db.query.blogs.findMany({
-    where: () => {
-      if (cursor) {
-        return or(
-          lt(
-            sql`(SELECT COUNT(*) FROM saves WHERE saves.blog_id = blogs.id)`,
-            cursor.totalSaves
-          ),
-          and(
-            eq(
-              sql`(SELECT COUNT(*) FROM saves WHERE saves.blog_id = blogs.id)`,
-              cursor.totalSaves
-            ),
-            lt(blogs.id, cursor.id)
-          )
-        );
-      }
-      return undefined;
-    },
-    orderBy: (blogs) => [
-      sql`(SELECT COUNT(*) FROM saves WHERE saves.blog_id = blogs.id) DESC`,
-      blogs.id,
-    ],
-    limit: pageSize,
-  });
-  return result;
-};
-
-const paginateBlogsWithSameTags = async (
-  tags: string[],
+const paginateUserwithLikeUsername = async (
+  username: string,
   pageSize = 3,
   cursor?: { id: string; created_at: Date }
 ) => {
-  const result = await db.query.blogs.findMany({
+  const result = await db.query.users.findMany({
     where: () => {
       const conditions = [];
-      conditions.push(sql`EXISTS (
-        SELECT 1 FROM blog_tags
-        WHERE blog_tags.blog_id = blogs.id
-        AND blog_tags.tag IN (${sql.join(tags)})
-      )`);
+      conditions.push(
+        sql`LOWER(users.username) LIKE LOWER(${`%${username}%`})`
+      );
       if (cursor) {
         const formattedDate = formatDate(cursor.created_at);
         conditions.push(
           or(
-            lt(blogs.created_at, formattedDate),
-            and(eq(blogs.created_at, formattedDate), lt(blogs.id, cursor.id))
+            lt(users.created_at, new Date(formattedDate)),
+            and(
+              eq(users.created_at, new Date(formattedDate)),
+              lt(users.id, cursor.id)
+            )
           )
         );
       }
       return and(...conditions);
     },
-    orderBy: (blogs, { desc }) => [desc(blogs.created_at), desc(blogs.id)],
-    limit: pageSize,
-  });
-  return result;
-};
-
-const paginateUserwithLikeUsername = async (
-  username: string,
-  pageSize = 3,
-  cursor?: { id: string }
-) => {
-  const result = await db.query.users.findMany({
-    where: () => {
-      const conditions = [
-        sql`LOWER(users.username) LIKE LOWER(${`%${username}%`})`,
-      ];
-      if (cursor) {
-        conditions.push(lt(users.id, cursor.id));
-      }
-      return and(...conditions);
-    },
-    orderBy: (users, { asc }) => [asc(users.id)],
+    orderBy: (users, { desc }) => [desc(users.created_at), desc(users.id)],
     limit: pageSize,
   });
   return result;
@@ -420,13 +373,81 @@ const paginateCommetsOfBlogWithSameId = async (
   return result;
 };
 
+const paginateUserSavesBlogs = async (
+  userId: string,
+  pageSize = 3,
+  cursor?: { id: string; created_at: Date }
+) => {
+  const result = await db.query.saves.findMany({
+    where: () => {
+      const conditions = [];
+      conditions.push(eq(saves.userId, userId)); // Filter by userId
+      if (cursor) {
+        const formattedDate = formatDate(cursor.created_at);
+        conditions.push(
+          or(
+            lt(saves.createdAt, formattedDate),
+            and(eq(saves.createdAt, formattedDate), lt(saves.id, cursor.id))
+          )
+        );
+      }
+      return and(...conditions);
+    },
+    orderBy: (saves, { desc }) => [desc(saves.createdAt), desc(saves.id)],
+    limit: pageSize,
+    with: {
+      blog: {
+        columns: {
+          id: true,
+          title: true,
+          description: true,
+          tags: true,
+          images: true,
+          content: true,
+          updated_at: true,
+        },
+        with: {
+          user: {
+            columns: {
+              id: true,
+              username: true,
+              email: true,
+              image: true,
+            },
+          },
+        },
+      },
+    },
+    extras: {
+      totalLikes:
+        sql<number>`CAST((SELECT COUNT(*) FROM likes WHERE likes.blog_id = saves.blog_id) AS INTEGER)`.as(
+          "total_likes"
+        ),
+      totalSaves:
+        sql<number>`CAST((SELECT COUNT(*) FROM saves WHERE saves.blog_id = saves.blog_id) AS INTEGER)`.as(
+          "total_saves"
+        ),
+      totalComments:
+        sql<number>`CAST((SELECT COUNT(*) FROM comments WHERE comments.blog_id = saves.blog_id) AS INTEGER)`.as(
+          "total_comments"
+        ),
+      isLiked: sql<boolean>`EXISTS (
+        SELECT 1 FROM likes
+        WHERE likes.blog_id = saves.blog_id
+        AND likes.user_id = ${userId}
+      )`.as("is_liked"),
+      isSaved: sql<boolean>`true`.as("is_saved"),
+    },
+  });
+  return result;
+};
+
 export {
   paginateBlogs,
   paginateAuthorBlogs,
   paginateBlogsWithLikeTitle,
-  paginateBlogsWithMostLikes,
-  paginateBlogsWithMostSaves,
   paginateBlogsWithSameTags,
   paginateCommetsOfBlogWithSameId,
   paginateUserwithLikeUsername,
+  paginateUserSavesBlogs,
 };

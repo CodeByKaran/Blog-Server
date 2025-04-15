@@ -17,6 +17,7 @@ import { generateOTP } from "../utils/otp.helper";
 
 import { eq } from "drizzle-orm";
 import { uploadImageToCloud } from "../utils/cloudinary.upload";
+import { paginateUserwithLikeUsername } from "../utils/paginate";
 
 export const cokkiesOption = {
   httpOnly: true,
@@ -394,6 +395,52 @@ const updateUserInfo = AsyncHandler(async (req: Request, res: Response) => {
   );
 });
 
+const getUsersWithLikeUsername = AsyncHandler(
+  async (req: Request, res: Response) => {
+    const username = req.query.username as string;
+
+    if (!username) {
+      throw new ApiError("Username is required", HttpStatus.BAD_REQUEST);
+    }
+
+    const id = req.query.id as string | undefined;
+    const string_date = req.query.createdAt as string;
+    const created_at: Date = new Date(string_date);
+    const pageSize = req.query.pageSize
+      ? parseInt(req.query.pageSize as string, 10)
+      : 2;
+
+    let paginatedUsers;
+    if (id) {
+      paginatedUsers = await paginateUserwithLikeUsername(username, pageSize, {
+        id,
+        created_at,
+      });
+    } else {
+      paginatedUsers = await paginateUserwithLikeUsername(username, pageSize);
+    }
+
+    const nextCursor =
+      paginatedUsers.length > 0
+        ? {
+            id: paginatedUsers[paginatedUsers.length - 1].id,
+            createdAt: paginatedUsers[paginatedUsers.length - 1].created_at,
+          }
+        : null;
+
+    return res.status(HttpStatus.OK).json(
+      successResponse(
+        {
+          pageSize,
+          cursor: nextCursor,
+          users: paginatedUsers,
+        },
+        "Users retrieved successfully!"
+      )
+    );
+  }
+);
+
 export {
   signUp,
   signIn,
@@ -404,4 +451,5 @@ export {
   signOut,
   uploadProfileImage,
   updateUserInfo,
+  getUsersWithLikeUsername,
 };

@@ -1,6 +1,7 @@
 import { Router } from "express";
 import {
   getSessionUser,
+  getUsersWithLikeUsername,
   refreshOtp,
   refreshTokens,
   signIn,
@@ -27,5 +28,7 @@ router
 router.route("/profile-info").patch(AuthMiddleware, updateUserInfo);
 
 router.route("/session").get(AuthMiddleware, getSessionUser);
+
+router.route("/search").get(AuthMiddleware, getUsersWithLikeUsername);
 
 export default router;

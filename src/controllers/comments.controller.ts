@@ -11,6 +11,7 @@ import { comments } from "../models/comments.model";
 import { blogs } from "../models/blog.model";
 import { isValidUUID, removeExtraSpaces } from "../utils/common.helper";
 import { and, eq } from "drizzle-orm";
+import { paginateCommetsOfBlogWithSameId } from "../utils/paginate";
 
 // Post a comment on a blog
 const postComment = AsyncHandler(async (req: Request, res: Response) => {
@@ -95,4 +96,76 @@ const deleteComment = AsyncHandler(async (req: Request, res: Response) => {
     .json(successResponse({}, "Comment deleted successfully"));
 });
 
-export { postComment, deleteComment };
+const getCommentsOfBlogWithSameId = AsyncHandler(
+  async (req: Request, res: Response) => {
+    const { blogId } = req.params;
+
+    if (
+      !blogId ||
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+        blogId
+      )
+    ) {
+      throw new ApiError("Invalid blog ID format", HttpStatus.BAD_REQUEST);
+    }
+
+    const id = req.query.id as string | undefined;
+    let created_at: Date | undefined = undefined;
+
+    if (req.query.createdAt) {
+      try {
+        const dateString = req.query.createdAt as string;
+        created_at = new Date(dateString);
+
+        if (isNaN(created_at.getTime())) {
+          throw new Error("Invalid date");
+        }
+      } catch (error) {
+        throw new ApiError(
+          "Invalid date format for createdAt",
+          HttpStatus.BAD_REQUEST
+        );
+      }
+    }
+
+    const pageSize = req.query.pageSize
+      ? parseInt(req.query.pageSize as string, 10)
+      : 3;
+
+    let paginatedComments;
+    if (id && created_at) {
+      paginatedComments = await paginateCommetsOfBlogWithSameId(
+        blogId,
+        pageSize,
+        { id, created_at }
+      );
+    } else {
+      paginatedComments = await paginateCommetsOfBlogWithSameId(
+        blogId,
+        pageSize
+      );
+    }
+
+    const nextCursor =
+      paginatedComments.length > 0
+        ? {
+            id: paginatedComments[paginatedComments.length - 1].id,
+            created_at:
+              paginatedComments[paginatedComments.length - 1].createdAt,
+          }
+        : null;
+
+    return res.status(HttpStatus.OK).json(
+      successResponse(
+        {
+          pageSize,
+          cursor: nextCursor,
+          comments: paginatedComments,
+        },
+        "Comments retrieved successfully!"
+      )
+    );
+  }
+);
+
+export { postComment, deleteComment, getCommentsOfBlogWithSameId };

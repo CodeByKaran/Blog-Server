@@ -10,7 +10,7 @@ import {
   getSingleBlog,
   getAuthorBlogs,
   getBlogsWithSameTitle,
-  getBlogsWithMostLikes,
+  getBlogsWithSameTags,
 } from "../controllers/blog.controller";
 import AuthMiddleware from "../middlewares/auth.middleware";
 import { upload } from "../middlewares/multer.middleware";
@@ -29,6 +29,7 @@ router
 router.route("/:blogId").get(AuthMiddleware, getSingleBlog);
 router.route("/author/:authorId").get(AuthMiddleware, getAuthorBlogs);
 router.route("/search/title").get(AuthMiddleware, getBlogsWithSameTitle);
-router.route("/search/most-likes").get(AuthMiddleware, getBlogsWithMostLikes);
+
+router.route("/search/same-tags").get(AuthMiddleware, getBlogsWithSameTags);
 
 export default router;
