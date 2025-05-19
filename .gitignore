@@ -7,10 +7,14 @@
 .env.test
 .env.production
 .env*.local
+.dist
+.logs
+logs/
 
 # ========================
 # Dependency Directories
 # ========================
+dist/
 node_modules/
 dist/        # Compiled TypeScript output
 build/       # Alternative build output folder
