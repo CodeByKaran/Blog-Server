@@ -11,7 +11,6 @@ const AuthMiddleware = AsyncHandler(
     next: NextFunction
   ) => {
     try {
-      // Extract token from cookies or Authorization header
       const token =
         req.cookies?.access_token || req.headers.authorization?.split(" ")[1];
 

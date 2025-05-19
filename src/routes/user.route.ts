@@ -1,5 +1,6 @@
 import { Router } from "express";
 import {
+  checkUsernameExists,
   getSessionUser,
   getUsersWithLikeUsername,
   refreshOtp,
@@ -30,5 +31,6 @@ router.route("/profile-info").patch(AuthMiddleware, updateUserInfo);
 router.route("/session").get(AuthMiddleware, getSessionUser);
 
 router.route("/search").get(AuthMiddleware, getUsersWithLikeUsername);
+router.route("/check-username/:username").get(checkUsernameExists);
 
 export default router;

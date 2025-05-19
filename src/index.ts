@@ -19,7 +19,14 @@ const PORT = process.env.PORT || 3000;
 const tokens = new Tokens();
 
 // Middleware
-app.use(cors());
+app.use(
+  cors({
+    origin: "http://localhost:3000",
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  })
+);
 app.use(helmet());
 app.use(morgan("combined"));
 app.use(express.json());
@@ -31,25 +38,37 @@ app.use(cookieParser());
 app.use((req, res, next) => {
   if (!req.cookies.csrfSecret) {
     const secret = tokens.secretSync();
+
     res.cookie("csrfSecret", secret, {
       httpOnly: true,
-      secure: process.env.NODE_ENV != "development",
+      secure: process.env.NODE_ENV === "production",
       sameSite: "strict",
     });
+
+    res.locals.csrfSecret = secret;
+  } else {
+    res.locals.csrfSecret = req.cookies.csrfSecret;
   }
 
-  const token = tokens.create(req.cookies.csrfSecret);
+  const token = tokens.create(res.locals.csrfSecret);
   res.locals.csrfToken = token;
 
   next();
 });
 
-// CSRF Protection verification middleware for non-GET requests
 app.use((req, res, next) => {
-  if (["GET", "HEAD", "OPTIONS"].includes(req.method)) {
+  const exemptPaths = ["/api/v1/user/sign-in", "/api/v1/user/sign-up"];
+  console.log(req.path);
+
+  if (
+    exemptPaths.includes(req.path) ||
+    ["GET", "HEAD", "OPTIONS"].includes(req.method)
+  ) {
     return next();
   }
+
   const token =
+    res.locals.csrfToken ||
     req.headers["x-csrf-token"] ||
     req.headers["x-xsrf-token"] ||
     req.body?._csrf;

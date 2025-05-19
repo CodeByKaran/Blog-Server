@@ -21,22 +21,21 @@ import { paginateUserwithLikeUsername } from "../utils/paginate";
 
 export const cokkiesOption = {
   httpOnly: true,
-  secure: process.env.NODE_ENV !== "development",
+  secure: false,
 };
 
 export const cookiesConfig = {
   access: {
     httpOnly: true,
-    secure: process.env.NODE_ENV !== "development",
-    sameSite: "strict" as const,
+    secure: process.env.NODE_ENV === "production", // true in production
     maxAge: 12 * 60 * 60 * 1000,
+    path: "/",
   },
   refresh: {
     httpOnly: true,
-    secure: process.env.NODE_ENV !== "development",
-    sameSite: "strict" as const,
-    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-    // Only sent to refresh endpoint
+    secure: process.env.NODE_ENV === "production", // true in production
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+    path: "/",
   },
 };
 
@@ -275,7 +274,11 @@ const getSessionUser = AsyncHandler(async (req: Request, res: Response) => {
 });
 
 const refreshOtp = AsyncHandler(async (req: Request, res: Response) => {
-  const email = req.cookies.email!;
+  const email = req.cookies.email! || req.body.email;
+
+  if (!email) {
+    throw new ApiError("Email not found", HttpStatus.BAD_REQUEST);
+  }
 
   const user = await db.query.users.findFirst({
     where: eq(users.email, email),
@@ -361,17 +364,17 @@ const updateUserInfo = AsyncHandler(async (req: Request, res: Response) => {
   }
 
   // Get updatable fields from request body
-  const { first_name, last_name, username } = req.body;
+  const { username, bio } = req.body;
 
   // Validate at least one field is being updated
-  if (!first_name && !last_name && !username) {
+  if (!bio && !username) {
     throw new ApiError("No fields provided for update", HttpStatus.BAD_REQUEST);
   }
 
   // Prepare update data
   const updateData: Partial<usersSchema> = {};
-  if (first_name) updateData.first_name = first_name;
-  if (last_name) updateData.last_name = last_name;
+
+  if (bio) updateData.bio = bio;
   if (username) updateData.username = username;
 
   // Update user in database
@@ -385,10 +388,11 @@ const updateUserInfo = AsyncHandler(async (req: Request, res: Response) => {
     successResponse(
       {
         id: updatedUser.id,
-        email: updatedUser.email,
-        username: updatedUser.username,
         first_name: updatedUser.first_name,
         last_name: updatedUser.last_name,
+        email: updatedUser.email,
+        username: updatedUser.username,
+        bio: updatedUser.bio,
       },
       "User updated successfully"
     )
@@ -441,6 +445,31 @@ const getUsersWithLikeUsername = AsyncHandler(
   }
 );
 
+const checkUsernameExists = AsyncHandler(
+  async (req: Request, res: Response) => {
+    const { username } = req.params;
+
+    if (!username) {
+      throw new ApiError("Username is required", HttpStatus.BAD_REQUEST);
+    }
+
+    const existingUser = await db.query.users.findFirst({
+      where(fields, operators) {
+        return operators.eq(fields.username, username);
+      },
+    });
+
+    return res.status(HttpStatus.OK).json(
+      successResponse(
+        {
+          exists: !!existingUser,
+        },
+        existingUser ? "Username is already taken" : "Username is available"
+      )
+    );
+  }
+);
+
 export {
   signUp,
   signIn,
@@ -452,4 +481,5 @@ export {
   uploadProfileImage,
   updateUserInfo,
   getUsersWithLikeUsername,
+  checkUsernameExists,
 };

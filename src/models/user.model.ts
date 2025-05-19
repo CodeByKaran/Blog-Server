@@ -12,6 +12,7 @@ export const users = table(
     id: t.uuid("id").primaryKey().notNull().defaultRandom(),
     first_name: t.varchar("first_name", { length: 30 }).notNull(),
     last_name: t.varchar("last_name", { length: 30 }).notNull(),
+    bio: t.varchar("bio", { length: 200 }).default(""),
     username: t.varchar("username", { length: 30 }).notNull().unique(),
     email: t.text("email").notNull().unique(),
     image: t
