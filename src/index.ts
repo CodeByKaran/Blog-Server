@@ -35,7 +35,7 @@ app.use(express.static("public"));
 app.use(cookieParser());
 
 //csrf
-app.use((req, res, next) => {
+app.use((req: Request, res: Response, next: NextFunction) => {
   if (!req.cookies.csrfSecret) {
     const secret = tokens.secretSync();
 
@@ -56,7 +56,7 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use((req, res, next) => {
+app.use((req: Request, res: Response, next: NextFunction) => {
   const exemptPaths = ["/api/v1/user/sign-in", "/api/v1/user/sign-up"];
   console.log(req.path);
 
@@ -85,7 +85,7 @@ app.use((req, res, next) => {
 });
 
 // Route to get CSRF token for client-side use
-app.get("/csrf-token", (req, res) => {
+app.get("/csrf-token", (req: Request, res: Response) => {
   res.json({ csrfToken: res.locals.csrfToken });
 });
 
@@ -108,7 +108,7 @@ app.get("/health", (req: Request, res: Response) => {
   res.status(200).json({ status: "ok" });
 });
 // get csrf token
-app.get("/api/csrf-token", (req, res) => {
+app.get("/api/csrf-token", (req: Request, res: Response) => {
   res.json({ csrfToken: res.locals.csrfToken });
 });
 

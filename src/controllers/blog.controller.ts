@@ -7,7 +7,7 @@ import {
   HttpStatus,
 } from "../utils/apiResponse";
 import { db } from "../db/db";
-import { and, eq, like, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { blogPostSchema } from "../config/zod.schema";
 import { blogs, blogsInsertion } from "../models/blog.model";
 import {
@@ -171,9 +171,16 @@ const postBlogs = AsyncHandler(async (req: Request, res: Response) => {
   let images: string[] = [];
 
   if (req.files) {
-    (req.files as Express.Multer.File[]).forEach((image) =>
-      imagesPath.push(image.path)
-    );
+    const filesArray = Array.isArray(req.files) ? req.files : [req.files];
+    filesArray.forEach((image) => {
+      if (
+        typeof image === "object" &&
+        "path" in image &&
+        typeof image.path === "string"
+      ) {
+        imagesPath.push(image.path);
+      }
+    });
   }
 
   if (imagesPath.length) {

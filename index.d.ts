@@ -1,0 +1,9 @@
+declare module "multer";
+declare module "express";
+declare module "cookie-parser";
+declare module "helmet";
+declare module "morgan";
+declare module "cors";
+declare module "express-session";
+declare module "jsonwebtoken";
+declare module "nodemailer";
