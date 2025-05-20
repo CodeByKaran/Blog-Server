@@ -172,7 +172,7 @@ const postBlogs = AsyncHandler(async (req: Request, res: Response) => {
 
   if (req.files) {
     const filesArray = Array.isArray(req.files) ? req.files : [req.files];
-    filesArray.forEach((image) => {
+    filesArray.forEach((image: object) => {
       if (
         typeof image === "object" &&
         "path" in image &&
