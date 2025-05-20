@@ -5,8 +5,9 @@
   "main": "src/index.ts",
   "scripts": {
     "build": "tsc",
-    "start": "npm run build && node dist/index.js",
-    "dev": "nodemon src/index.ts"
+    "start": "node dist/index.js",
+    "dev": "nodemon src/index.ts",
+    "postinstall": "npm run build"
   },
   "repository": {
     "type": "git",
@@ -54,5 +55,8 @@
     "nodemon": "^3.1.9",
     "ts-node": "^10.9.2",
     "typescript": "^5.8.3"
+  },
+  "engines": {
+    "node": "22.14.0"
   }
 }
